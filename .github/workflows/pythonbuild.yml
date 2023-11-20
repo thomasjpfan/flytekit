@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - fix_codecov
   pull_request:
 
 env:
