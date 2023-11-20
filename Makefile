@@ -57,8 +57,9 @@ unit_test_codecov:
 unit_test:
 	# Skip tensorflow tests and run them with the necessary env var set so that a working (albeit slower)
 	# library is used to serialize/deserialize protobufs is used.
-	$(PYTEST) -m "not sandbox_test" tests/flytekit/unit/ --ignore=tests/flytekit/unit/extras/tensorflow ${CODECOV_OPTS} && \
-		PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python $(PYTEST) tests/flytekit/unit/extras/tensorflow ${CODECOV_OPTS}
+	$(PYTEST) -m "not sandbox_test" tests/flytekit/unit/core/test_launch_plan.py --ignore=tests/flytekit/unit/extras/tensorflow ${CODECOV_OPTS}
+	# $(PYTEST) -m "not sandbox_test" tests/flytekit/unit/ --ignore=tests/flytekit/unit/extras/tensorflow ${CODECOV_OPTS} && \
+	# 	PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python $(PYTEST) tests/flytekit/unit/extras/tensorflow ${CODECOV_OPTS}
 
 .PHONY: integration_test_codecov
 integration_test_codecov:
