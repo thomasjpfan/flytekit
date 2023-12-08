@@ -8,6 +8,7 @@ import rich_click as click
 from google.protobuf.json_format import MessageToJson
 
 from flytekit.clis.sdk_in_container.constants import CTX_VERBOSE
+from flytekit.clis.sdk_in_container.helpers import get_remote
 from flytekit.exceptions.base import FlyteException
 from flytekit.exceptions.user import FlyteInvalidInputException
 from flytekit.loggers import cli_logger
@@ -146,6 +147,7 @@ class PyFlyteParams:
     config_file: typing.Optional[str] = None
     verbose: bool = False
     pkgs: typing.List[str] = field(default_factory=list)
+    get_remote: typing.Callable = get_remote
 
     @classmethod
     def from_dict(cls, d: typing.Dict[str, typing.Any]) -> "PyFlyteParams":

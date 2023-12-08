@@ -6,9 +6,10 @@ import rich_click as click
 from flytekit import configuration
 from flytekit.clis.sdk_in_container.backfill import backfill
 from flytekit.clis.sdk_in_container.build import build
-from flytekit.clis.sdk_in_container.constants import CTX_CONFIG_FILE, CTX_PACKAGES, CTX_VERBOSE
+from flytekit.clis.sdk_in_container.constants import CTX_CONFIG_FILE, CTX_PACKAGES, CTX_VERBOSE, CTX_GET_REMOTE_FUNC
 from flytekit.clis.sdk_in_container.fetch import fetch
 from flytekit.clis.sdk_in_container.get import get
+from flytekit.clis.sdk_in_container.helpers import get_remote
 from flytekit.clis.sdk_in_container.init import init
 from flytekit.clis.sdk_in_container.launchplan import launchplan
 from flytekit.clis.sdk_in_container.local_cache import local_cache
@@ -70,6 +71,7 @@ def main(ctx, pkgs: typing.List[str], config: str, verbose: bool):
                 pkgs = []
     ctx.obj[CTX_PACKAGES] = pkgs
     ctx.obj[CTX_VERBOSE] = verbose
+    ctx.obj[CTX_GET_REMOTE_FUNC] = get_remote
 
 
 main.add_command(serialize)
