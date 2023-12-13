@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import collections
-import copy
 import dataclasses
 import datetime as _datetime
 import enum
@@ -11,18 +10,17 @@ import mimetypes
 import textwrap
 import typing
 from abc import ABC, abstractmethod
-from functools import lru_cache
+from dataclasses import dataclass, make_dataclass
+from functools import lru_cache, partial
 from typing import Dict, List, NamedTuple, Optional, Type, cast
 
-from dataclasses_json import DataClassJsonMixin, dataclass_json
+import msgspec
 from google.protobuf import json_format as _json_format
 from google.protobuf import struct_pb2 as _struct
 from google.protobuf.json_format import MessageToDict as _MessageToDict
 from google.protobuf.json_format import ParseDict as _ParseDict
 from google.protobuf.message import Message
 from google.protobuf.struct_pb2 import Struct
-from marshmallow_enum import EnumField, LoadDumpOptions
-from mashumaro.mixins.json import DataClassJSONMixin
 from typing_extensions import Annotated, get_args, get_origin
 
 from flytekit.core.annotation import FlyteAnnotation
@@ -325,7 +323,7 @@ class DataclassTransformer(TypeTransformer[object]):
     def __init__(self):
         super().__init__("Object-Dataclass-Transformer", object)
 
-    def assert_type(self, expected_type: Type[DataClassJsonMixin], v: T):
+    def assert_type(self, expected_type: Type[dataclass], v: T):
         # Skip iterating all attributes in the dataclass if the type of v already matches the expected_type
         if type(v) == expected_type:
             return
@@ -375,30 +373,10 @@ class DataclassTransformer(TypeTransformer[object]):
                 f"Type {t} cannot be parsed."
             )
 
-        if not issubclass(t, DataClassJsonMixin) and not issubclass(t, DataClassJSONMixin):
-            raise AssertionError(
-                f"Dataclass {t} should be decorated with @dataclass_json or mixin with DataClassJSONMixin to be "
-                f"serialized correctly"
-            )
-        schema = None
         try:
-            if issubclass(t, DataClassJsonMixin):
-                s = cast(DataClassJsonMixin, self._get_origin_type_in_annotation(t)).schema()
-                for _, v in s.fields.items():
-                    # marshmallow-jsonschema only supports enums loaded by name.
-                    # https://github.com/fuhrysteve/marshmallow-jsonschema/blob/81eada1a0c42ff67de216923968af0a6b54e5dcb/marshmallow_jsonschema/base.py#L228
-                    if isinstance(v, EnumField):
-                        v.load_by = LoadDumpOptions.name
-                # check if DataClass mixin
-                from marshmallow_jsonschema import JSONSchema
-
-                schema = JSONSchema().dump(s)
-            else:  # DataClassJSONMixin
-                from mashumaro.jsonschema import build_json_schema
-
-                schema = build_json_schema(cast(DataClassJSONMixin, self._get_origin_type_in_annotation(t))).to_dict()
+            schema = msgspec.json.schema(t)
         except Exception as e:
-            # https://github.com/lovasoa/marshmallow_dataclass/issues/13
+            schema = None
             logger.warning(
                 f"Failed to extract schema for object {t}, (will run schemaless) error: {e}"
                 f"If you have postponed annotations turned on (PEP 563) turn it off please. Postponed"
@@ -429,36 +407,11 @@ class DataclassTransformer(TypeTransformer[object]):
                 f"{type(python_val)} is not of type @dataclass, only Dataclasses are supported for "
                 f"user defined datatypes in Flytekit"
             )
-        if not issubclass(type(python_val), DataClassJsonMixin) and not issubclass(
-            type(python_val), DataClassJSONMixin
-        ):
-            raise TypeTransformerFailedError(
-                f"Dataclass {python_type} should be decorated with @dataclass_json or inherit DataClassJSONMixin to be "
-                f"serialized correctly"
-            )
         self._serialize_flyte_type(python_val, python_type)
 
-        json_str = python_val.to_json()  # type: ignore
+        json_bytes = msgspec.json.encode(python_val)  # type: ignore
 
-        return Literal(scalar=Scalar(generic=_json_format.Parse(json_str, _struct.Struct())))  # type: ignore
-
-    def _get_origin_type_in_annotation(self, python_type: Type[T]) -> Type[T]:
-        # dataclass will try to hash python type when calling dataclass.schema(), but some types in the annotation is
-        # not hashable, such as Annotated[StructuredDataset, kwtypes(...)]. Therefore, we should just extract the origin
-        # type from annotated.
-        if get_origin(python_type) is list:
-            return typing.List[self._get_origin_type_in_annotation(get_args(python_type)[0])]  # type: ignore
-        elif get_origin(python_type) is dict:
-            return typing.Dict[  # type: ignore
-                self._get_origin_type_in_annotation(get_args(python_type)[0]),
-                self._get_origin_type_in_annotation(get_args(python_type)[1]),
-            ]
-        elif is_annotated(python_type):
-            return get_args(python_type)[0]
-        elif dataclasses.is_dataclass(python_type):
-            for field in dataclasses.fields(copy.deepcopy(python_type)):
-                field.type = self._get_origin_type_in_annotation(field.type)
-        return python_type
+        return Literal(scalar=Scalar(generic=_json_format.Parse(json_bytes, _struct.Struct())))  # type: ignore
 
     def _fix_structured_dataset_type(self, python_type: Type[T], python_val: typing.Any) -> T:
         # In python 3.7, 3.8, DataclassJson will deserialize Annotated[StructuredDataset, kwtypes(..)] to a dict,
@@ -665,7 +618,7 @@ class DataclassTransformer(TypeTransformer[object]):
 
         return val
 
-    def _fix_dataclass_int(self, dc_type: Type[DataClassJsonMixin], dc: DataClassJsonMixin) -> DataClassJsonMixin:
+    def _fix_dataclass_int(self, dc_type: dataclass, dc: dataclass) -> dataclass:
         """
         This is a performance penalty to convert to the right types, but this is expected by the user and hence
         needs to be done
@@ -684,15 +637,8 @@ class DataclassTransformer(TypeTransformer[object]):
                 f"{expected_python_type} is not of type @dataclass, only Dataclasses are supported for "
                 "user defined datatypes in Flytekit"
             )
-        if not issubclass(expected_python_type, DataClassJsonMixin) and not issubclass(
-            expected_python_type, DataClassJSONMixin
-        ):
-            raise TypeTransformerFailedError(
-                f"Dataclass {expected_python_type} should be decorated with @dataclass_json or mixin with DataClassJSONMixin to be "
-                f"serialized correctly"
-            )
         json_str = _json_format.MessageToJson(lv.scalar.generic)
-        dc = expected_python_type.from_json(json_str)  # type: ignore
+        dc = msgspec.json.encode(json_str, type=expected_python_type)  # type: ignore
 
         dc = self._fix_structured_dataset_type(expected_python_type, dc)
         return self._fix_dataclass_int(expected_python_type, self._deserialize_flyte_type(dc, expected_python_type))
@@ -703,17 +649,42 @@ class DataclassTransformer(TypeTransformer[object]):
     # TypeEngine.assert_type would not be happy about.
     @lru_cache(typed=True)
     def guess_python_type(self, literal_type: LiteralType) -> Type[T]:  # type: ignore
-        if literal_type.simple == SimpleType.STRUCT:
-            if literal_type.metadata is not None:
-                if DEFINITIONS in literal_type.metadata:
-                    schema_name = literal_type.metadata["$ref"].split("/")[-1]
-                    return convert_marshmallow_json_schema_to_python_class(
-                        literal_type.metadata[DEFINITIONS], schema_name
-                    )
-                elif TITLE in literal_type.metadata:
-                    schema_name = literal_type.metadata[TITLE]
-                    return convert_mashumaro_json_schema_to_python_class(literal_type.metadata, schema_name)
+        if literal_type.simple == SimpleType.STRUCT and literal_type.metadata is not None:
+            return get_python_type_from_schema(literal_type.metadata, literal_type.metadata["$defs"])
         raise ValueError(f"Dataclass transformer cannot reverse {literal_type}")
+
+
+def get_python_type_from_schema(type_info, schema_defs):
+    get_python_type_from_schema_ = partial(get_python_type_from_schema, schema_defs=schema_defs)
+    if "type" in type_info:
+        type_ = type_info["type"]
+        simple_types = {"integer": int, "boolean": bool, "number": float, "string": str, "null": None}
+        if type_ in simple_types:
+            return simple_types[type_]
+        elif type_ == "object":
+            try:
+                return Dict[str, get_python_type_from_schema_(type_info["additionalProperties"])]
+            except KeyError:
+                return dict
+        elif type_ == "array":
+            return List[get_python_type_from_schema_(type_info["items"])]
+
+    elif "anyOf" in type_info:
+        return Union[*(get_python_type_from_schema_(t) for t in type_info["anyOf"])]
+
+    elif "$ref" in type_info:
+        defs_prefix_len = len("#/$defs/")
+        schema_name = type_info["$ref"][defs_prefix_len:]
+        if "enum" in schema_defs[schema_name]:
+            return enum.Enum(schema_name, schema_defs[schema_name]["enum"])
+        # dataclass
+        attribute_list = [
+            (property_name, get_python_type_from_schema_(property_val))
+            for property_name, property_val in schema_defs[schema_name]["properties"].items()
+        ]
+        return make_dataclass(schema_name, attribute_list)
+    else:
+        raise TypeError(f"Unable to get type for {type_info}")
 
 
 class ProtobufTransformer(TypeTransformer[Message]):
@@ -795,43 +766,6 @@ class EnumTransformer(TypeTransformer[enum.Enum]):
         if literal_type.enum_type:
             return enum.Enum("DynamicEnum", {f"{i}": i for i in literal_type.enum_type.values})  # type: ignore
         raise ValueError(f"Enum transformer cannot reverse {literal_type}")
-
-
-def generate_attribute_list_from_dataclass_json_mixin(schema: dict, schema_name: typing.Any):
-    attribute_list = []
-    for property_key, property_val in schema["properties"].items():
-        if property_val.get("anyOf"):
-            property_type = property_val["anyOf"][0]["type"]
-        elif property_val.get("enum"):
-            property_type = "enum"
-        else:
-            property_type = property_val["type"]
-        # Handle list
-        if property_type == "array":
-            attribute_list.append((property_key, typing.List[_get_element_type(property_val["items"])]))  # type: ignore
-        # Handle dataclass and dict
-        elif property_type == "object":
-            if property_val.get("anyOf"):
-                sub_schemea = property_val["anyOf"][0]
-                sub_schemea_name = sub_schemea["title"]
-                attribute_list.append(
-                    (property_key, convert_mashumaro_json_schema_to_python_class(sub_schemea, sub_schemea_name))
-                )
-            elif property_val.get("additionalProperties"):
-                attribute_list.append(
-                    (property_key, typing.Dict[str, _get_element_type(property_val["additionalProperties"])])  # type: ignore
-                )
-            else:
-                sub_schemea_name = property_val["title"]
-                attribute_list.append(
-                    (property_key, convert_mashumaro_json_schema_to_python_class(property_val, sub_schemea_name))
-                )
-        elif property_type == "enum":
-            attribute_list.append([property_key, str])  # type: ignore
-        # Handle int, float, bool or str
-        else:
-            attribute_list.append([property_key, _get_element_type(property_val)])  # type: ignore
-    return attribute_list
 
 
 class TypeEngine(typing.Generic[T]):
@@ -1698,82 +1632,6 @@ class BinaryIOTransformer(TypeTransformer[typing.BinaryIO]):
         ctx.file_access.get_data(lv.scalar.blob.uri, local_path, is_multipart=False)
         # TODO it is probability the responsibility of the framework to close this
         return open(local_path, "rb")
-
-
-def generate_attribute_list_from_dataclass_json(schema: dict, schema_name: typing.Any):
-    attribute_list = []
-    for property_key, property_val in schema[schema_name]["properties"].items():
-        property_type = property_val["type"]
-        # Handle list
-        if property_val["type"] == "array":
-            attribute_list.append((property_key, List[_get_element_type(property_val["items"])]))  # type: ignore[misc,index]
-        # Handle dataclass and dict
-        elif property_type == "object":
-            if property_val.get("$ref"):
-                name = property_val["$ref"].split("/")[-1]
-                attribute_list.append((property_key, convert_marshmallow_json_schema_to_python_class(schema, name)))
-            elif property_val.get("additionalProperties"):
-                attribute_list.append(
-                    (property_key, Dict[str, _get_element_type(property_val["additionalProperties"])])  # type: ignore[misc,index]
-                )
-            else:
-                attribute_list.append((property_key, Dict[str, _get_element_type(property_val)]))  # type: ignore[misc,index]
-        # Handle int, float, bool or str
-        else:
-            attribute_list.append([property_key, _get_element_type(property_val)])  # type: ignore
-    return attribute_list
-
-
-def convert_marshmallow_json_schema_to_python_class(
-    schema: dict, schema_name: typing.Any
-) -> Type[dataclasses.dataclass()]:  # type: ignore
-    """
-    Generate a model class based on the provided JSON Schema
-    :param schema: dict representing valid JSON schema
-    :param schema_name: dataclass name of return type
-    """
-
-    attribute_list = generate_attribute_list_from_dataclass_json(schema, schema_name)
-    return dataclass_json(dataclasses.make_dataclass(schema_name, attribute_list))
-
-
-def convert_mashumaro_json_schema_to_python_class(
-    schema: dict, schema_name: typing.Any
-) -> Type[dataclasses.dataclass()]:  # type: ignore
-    """
-    Generate a model class based on the provided JSON Schema
-    :param schema: dict representing valid JSON schema
-    :param schema_name: dataclass name of return type
-    """
-
-    attribute_list = generate_attribute_list_from_dataclass_json_mixin(schema, schema_name)
-    return dataclass_json(dataclasses.make_dataclass(schema_name, attribute_list))
-
-
-def _get_element_type(element_property: typing.Dict[str, str]) -> Type:
-    element_type = (
-        [e_property["type"] for e_property in element_property["anyOf"]]  # type: ignore
-        if element_property.get("anyOf")
-        else element_property["type"]
-    )
-    element_format = element_property["format"] if "format" in element_property else None
-
-    if type(element_type) == list:
-        # Element type of Optional[int] is [integer, None]
-        return typing.Optional[_get_element_type({"type": element_type[0]})]  # type: ignore
-
-    if element_type == "string":
-        return str
-    elif element_type == "integer":
-        return int
-    elif element_type == "boolean":
-        return bool
-    elif element_type == "number":
-        if element_format == "integer":
-            return int
-        else:
-            return float
-    return str
 
 
 def dataclass_from_dict(cls: type, src: typing.Dict[str, typing.Any]) -> typing.Any:
