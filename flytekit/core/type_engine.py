@@ -52,8 +52,6 @@ from flytekit.models.literals import (
 from flytekit.models.types import LiteralType, SimpleType, StructuredDatasetType, TypeStructure, UnionType
 
 T = typing.TypeVar("T")
-DEFINITIONS = "definitions"
-TITLE = "title"
 
 
 class BatchSize:
@@ -638,7 +636,7 @@ class DataclassTransformer(TypeTransformer[object]):
                 "user defined datatypes in Flytekit"
             )
         json_str = _json_format.MessageToJson(lv.scalar.generic)
-        dc = msgspec.json.encode(json_str, type=expected_python_type)  # type: ignore
+        dc: dataclass = msgspec.json.decode(json_str, type=expected_python_type)
 
         dc = self._fix_structured_dataset_type(expected_python_type, dc)
         return self._fix_dataclass_int(expected_python_type, self._deserialize_flyte_type(dc, expected_python_type))
@@ -654,7 +652,7 @@ class DataclassTransformer(TypeTransformer[object]):
         raise ValueError(f"Dataclass transformer cannot reverse {literal_type}")
 
 
-def get_python_type_from_schema(type_info, schema_defs):
+def get_python_type_from_schema(type_info: dict, schema_defs: dict):
     get_python_type_from_schema_ = partial(get_python_type_from_schema, schema_defs=schema_defs)
     if "type" in type_info:
         type_ = type_info["type"]
@@ -663,11 +661,13 @@ def get_python_type_from_schema(type_info, schema_defs):
             return simple_types[type_]
         elif type_ == "object":
             try:
-                return Dict[str, get_python_type_from_schema_(type_info["additionalProperties"])]
+                addtional_properties = type_info["additionalProperties"]
+                return Dict[str, get_python_type_from_schema_(addtional_properties)]
             except KeyError:
                 return dict
         elif type_ == "array":
-            return List[get_python_type_from_schema_(type_info["items"])]
+            items = type_info["items"]
+            return List[get_python_type_from_schema_(items)]
 
     elif "anyOf" in type_info:
         return Union[*(get_python_type_from_schema_(t) for t in type_info["anyOf"])]

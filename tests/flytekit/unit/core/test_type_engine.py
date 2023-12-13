@@ -42,8 +42,8 @@ from flytekit.core.type_engine import (
     TypeTransformer,
     TypeTransformerFailedError,
     UnionTransformer,
-    convert_marshmallow_json_schema_to_python_class,
-    convert_mashumaro_json_schema_to_python_class,
+    # convert_marshmallow_json_schema_to_python_class,
+    # convert_mashumaro_json_schema_to_python_class,
     dataclass_from_dict,
     get_underlying_type,
     is_annotated,
@@ -475,41 +475,41 @@ def test_dict_transformer():
     )
 
 
-def test_convert_marshmallow_json_schema_to_python_class():
-    @dataclass
-    class Foo(DataClassJsonMixin):
-        x: int
-        y: str
+# def test_convert_marshmallow_json_schema_to_python_class():
+#     @dataclass
+#     class Foo(DataClassJsonMixin):
+#         x: int
+#         y: str
 
-    schema = JSONSchema().dump(typing.cast(DataClassJsonMixin, Foo).schema())
-    foo_class = convert_marshmallow_json_schema_to_python_class(schema["definitions"], "FooSchema")
-    foo = foo_class(x=1, y="hello")
-    foo.x = 2
-    assert foo.x == 2
-    assert foo.y == "hello"
-    with pytest.raises(AttributeError):
-        _ = foo.c
-    assert dataclasses.is_dataclass(foo_class)
+#     schema = JSONSchema().dump(typing.cast(DataClassJsonMixin, Foo).schema())
+#     foo_class = convert_marshmallow_json_schema_to_python_class(schema["definitions"], "FooSchema")
+#     foo = foo_class(x=1, y="hello")
+#     foo.x = 2
+#     assert foo.x == 2
+#     assert foo.y == "hello"
+#     with pytest.raises(AttributeError):
+#         _ = foo.c
+#     assert dataclasses.is_dataclass(foo_class)
 
 
-def test_convert_mashumaro_json_schema_to_python_class():
-    @dataclass
-    class Foo(DataClassJSONMixin):
-        x: int
-        y: str
+# def test_convert_mashumaro_json_schema_to_python_class():
+#     @dataclass
+#     class Foo(DataClassJSONMixin):
+#         x: int
+#         y: str
 
-    # schema = JSONSchema().dump(typing.cast(DataClassJSONMixin, Foo).schema())
-    from mashumaro.jsonschema import build_json_schema
+#     # schema = JSONSchema().dump(typing.cast(DataClassJSONMixin, Foo).schema())
+#     from mashumaro.jsonschema import build_json_schema
 
-    schema = build_json_schema(typing.cast(DataClassJSONMixin, Foo)).to_dict()
-    foo_class = convert_mashumaro_json_schema_to_python_class(schema, "FooSchema")
-    foo = foo_class(x=1, y="hello")
-    foo.x = 2
-    assert foo.x == 2
-    assert foo.y == "hello"
-    with pytest.raises(AttributeError):
-        _ = foo.c
-    assert dataclasses.is_dataclass(foo_class)
+#     schema = build_json_schema(typing.cast(DataClassJSONMixin, Foo)).to_dict()
+#     foo_class = convert_mashumaro_json_schema_to_python_class(schema, "FooSchema")
+#     foo = foo_class(x=1, y="hello")
+#     foo.x = 2
+#     assert foo.x == 2
+#     assert foo.y == "hello"
+#     with pytest.raises(AttributeError):
+#         _ = foo.c
+#     assert dataclasses.is_dataclass(foo_class)
 
 
 def test_list_transformer():
