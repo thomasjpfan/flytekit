@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - plugins-use-lazy-module-testing
   pull_request:
 
 env:
