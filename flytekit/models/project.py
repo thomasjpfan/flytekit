@@ -9,7 +9,7 @@ class Project(_common.FlyteIdlEntity):
         ARCHIVED = _project_pb2.Project.ARCHIVED
         SYSTEM_GENERATED = _project_pb2.Project.SYSTEM_GENERATED
 
-    def __init__(self, id, name, description, state=ProjectState.ACTIVE):
+    def __init__(self, id, name, description, state=ProjectState.ACTIVE, org=""):
         """
         A project represents a logical grouping used to organize entities (tasks, workflows, executions) in the Flyte
         platform.
@@ -17,11 +17,13 @@ class Project(_common.FlyteIdlEntity):
         :param Text id: A globally unique identifier associated with this project.
         :param Text name: A human-readable name for this project.
         :param Text name: A concise description for this project.
+        :param Text org: [Optional] The name of the org.
         """
         self._id = id
         self._name = name
         self._description = description
         self._state = state
+        self._org = org
 
     @classmethod
     def archived_project(cls, id):
@@ -63,11 +65,21 @@ class Project(_common.FlyteIdlEntity):
         """
         return self._state
 
+    @property
+    def org(self):
+        """
+        The name of the org.
+        :rtype: Text
+        """
+        return self._org
+
     def to_flyte_idl(self):
         """
         :rtype: flyteidl.admin.project_pb2.Project
         """
-        return _project_pb2.Project(id=self.id, name=self.name, description=self.description, state=self._state)
+        return _project_pb2.Project(
+            id=self.id, name=self.name, description=self.description, state=self._state, org=self._org
+        )
 
     @classmethod
     def from_flyte_idl(cls, pb2_object):
@@ -75,4 +87,10 @@ class Project(_common.FlyteIdlEntity):
         :param flyteidl.admin.project_pb2.Project pb2_object:
         :rtype: Project
         """
-        return cls(id=pb2_object.id, name=pb2_object.name, description=pb2_object.description, state=pb2_object.state)
+        return cls(
+            id=pb2_object.id,
+            name=pb2_object.name,
+            description=pb2_object.description,
+            state=pb2_object.state,
+            org=pb2_object.org,
+        )

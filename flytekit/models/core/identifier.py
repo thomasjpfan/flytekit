@@ -11,19 +11,21 @@ class ResourceType(object):
 
 
 class Identifier(_common_models.FlyteIdlEntity):
-    def __init__(self, resource_type, project, domain, name, version):
+    def __init__(self, resource_type, project, domain, name, version, org=""):
         """
         :param int resource_type: enum value from ResourceType
         :param Text project:
         :param Text domain:
         :param Text name:
         :param Text version:
+        :param Text org:
         """
         self._resource_type = resource_type
         self._project = project
         self._domain = domain
         self._name = name
         self._version = version
+        self._org = org
 
     @property
     def resource_type(self):
@@ -64,6 +66,13 @@ class Identifier(_common_models.FlyteIdlEntity):
         """
         return self._version
 
+    @property
+    def org(self):
+        """
+        :rtype: Text
+        """
+        return self._org
+
     def to_flyte_idl(self):
         """
         :rtype: flyteidl.core.identifier_pb2.Identifier
@@ -74,6 +83,7 @@ class Identifier(_common_models.FlyteIdlEntity):
             domain=self.domain,
             name=self.name,
             version=self.version,
+            org=self.org,
         )
 
     @classmethod
@@ -83,30 +93,28 @@ class Identifier(_common_models.FlyteIdlEntity):
         :rtype: Identifier
         """
         return cls(
-            resource_type=p.resource_type,
-            project=p.project,
-            domain=p.domain,
-            name=p.name,
-            version=p.version,
+            resource_type=p.resource_type, project=p.project, domain=p.domain, name=p.name, version=p.version, org=p.org
         )
 
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        return f"{self.resource_type_name()}:{self.project}:{self.domain}:{self.name}:{self.version}"
+        return f"{self.resource_type_name()}:{self.org}:{self.project}:{self.domain}:{self.name}:{self.version}"
 
 
 class WorkflowExecutionIdentifier(_common_models.FlyteIdlEntity):
-    def __init__(self, project, domain, name):
+    def __init__(self, project, domain, name, org=""):
         """
         :param Text project:
         :param Text domain:
         :param Text name:
+        :param Text org:
         """
         self._project = project
         self._domain = domain
         self._name = name
+        self._org = org
 
     @property
     def project(self):
@@ -129,6 +137,13 @@ class WorkflowExecutionIdentifier(_common_models.FlyteIdlEntity):
         """
         return self._name
 
+    @property
+    def org(self):
+        """
+        :rtype: Text
+        """
+        return self._org
+
     def to_flyte_idl(self):
         """
         :rtype: flyteidl.core.identifier_pb2.WorkflowExecutionIdentifier
@@ -137,6 +152,7 @@ class WorkflowExecutionIdentifier(_common_models.FlyteIdlEntity):
             project=self.project,
             domain=self.domain,
             name=self.name,
+            org=self.org,
         )
 
     @classmethod
@@ -149,6 +165,7 @@ class WorkflowExecutionIdentifier(_common_models.FlyteIdlEntity):
             project=p.project,
             domain=p.domain,
             name=p.name,
+            org=p.org,
         )
 
 

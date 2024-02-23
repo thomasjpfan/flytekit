@@ -22,6 +22,7 @@ class Identifier(_core_identifier.Identifier):
             base_model.domain,
             base_model.name,
             base_model.version,
+            base_model.org,
         )
 
     @classmethod
@@ -37,13 +38,13 @@ class Identifier(_core_identifier.Identifier):
         :rtype: Identifier
         """
         segments = string.split(":")
-        if len(segments) != 5:
+        if len(segments) != 6:
             raise _user_exceptions.FlyteValueException(
                 "The provided string was not in a parseable format. The string for an identifier must be in the format"
-                " entity_type:project:domain:name:version.  Received: {}".format(string)
+                " entity_type:org:project:domain:name:version.  Received: {}".format(string)
             )
 
-        resource_type, project, domain, name, version = segments
+        resource_type, org, project, domain, name, version = segments
 
         if resource_type not in cls._STRING_TO_TYPE_MAP:
             raise _user_exceptions.FlyteValueException(
@@ -53,11 +54,12 @@ class Identifier(_core_identifier.Identifier):
             )
         resource_type = cls._STRING_TO_TYPE_MAP[resource_type]
 
-        return cls(resource_type, project, domain, name, version)
+        return cls(resource_type, project, domain, name, version, org)
 
     def __str__(self):
-        return "{}:{}:{}:{}:{}".format(
+        return "{}:{}:{}:{}:{}:{}".format(
             type(self)._TYPE_TO_STRING_MAP.get(self.resource_type, "<unknown>"),
+            self.org,
             self.project,
             self.domain,
             self.name,
@@ -140,6 +142,7 @@ class WorkflowExecutionIdentifier(_core_identifier.WorkflowExecutionIdentifier):
             base_model.project,
             base_model.domain,
             base_model.name,
+            base_model.org,
         )
 
     @classmethod
@@ -155,14 +158,14 @@ class WorkflowExecutionIdentifier(_core_identifier.WorkflowExecutionIdentifier):
         :rtype: WorkflowExecutionIdentifier
         """
         segments = string.split(":")
-        if len(segments) != 4:
+        if len(segments) != 5:
             raise _user_exceptions.FlyteValueException(
                 string,
                 "The provided string was not in a parseable format. The string for an identifier must be in the format"
-                " ex:project:domain:name.",
+                " ex:org:project:domain:name.",
             )
 
-        resource_type, project, domain, name = segments
+        resource_type, org, project, domain, name = segments
 
         if resource_type != "ex":
             raise _user_exceptions.FlyteValueException(
@@ -174,7 +177,8 @@ class WorkflowExecutionIdentifier(_core_identifier.WorkflowExecutionIdentifier):
             project,
             domain,
             name,
+            org,
         )
 
     def __str__(self):
-        return "ex:{}:{}:{}".format(self.project, self.domain, self.name)
+        return "ex:{}:{}:{}:{}".format(self.org, self.project, self.domain, self.name)
