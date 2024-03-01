@@ -1,7 +1,7 @@
 name: Build
 
 on:
-  push:
+  workflow_dispatch:
 
 env:
   FLYTE_SDK_LOGGING_LEVEL: 10 # debug
