@@ -91,8 +91,8 @@ class TimeLineDeck(Deck):
         assert isinstance(info, dict)
         self.time_info.append(info)
 
-    def is_available() -> bool:
-        """Return True if TimeLineDeck can be rendered"""
+    def is_available(self) -> bool:
+        """Return True if TimeLineDeck can be rendered."""
         try:
             from flytekitplugins.deck.renderer import GanttChartRenderer, TableRenderer  # noqa
 

@@ -7,7 +7,7 @@ from mock import mock
 import flytekit
 from flytekit import Deck, FlyteContextManager, task
 from flytekit.deck import TopFrameRenderer
-from flytekit.deck.deck import _output_deck
+from flytekit.deck.deck import TimeLineDeck, _output_deck
 
 
 @pytest.mark.skipif("pandas" not in sys.modules, reason="Pandas is not installed.")
@@ -153,3 +153,18 @@ def test_get_deck():
     ctx.user_space_params._decks = [ctx.user_space_params.default_deck]
     ctx.user_space_params._decks[0] = flytekit.Deck("test", html)
     _output_deck("test_task", ctx.user_space_params)
+
+
+@pytest.mark.parametrize("is_available", [True, False])
+def test_timeline_deck_available(is_available):
+    n_decks_before = len(FlyteContextManager.current_context().user_space_params.decks)
+
+    TimeLineDeck.is_available = lambda self: is_available
+    TimeLineDeck("TimeLine")
+
+    n_decks_after = len(FlyteContextManager.current_context().user_space_params.decks)
+
+    if is_available:
+        assert n_decks_after == n_decks_before + 1
+    else:
+        assert n_decks_after == n_decks_before
