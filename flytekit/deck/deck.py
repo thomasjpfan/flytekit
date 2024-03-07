@@ -80,12 +80,25 @@ class TimeLineDeck(Deck):
     """
 
     def __init__(self, name: str, html: Optional[str] = ""):
-        super().__init__(name, html)
+        self._name = name
+        self._html = html
+        if self.is_available():
+            FlyteContextManager.current_context().user_space_params.decks.append(self)
+
         self.time_info = []
 
     def append_time_info(self, info: dict):
         assert isinstance(info, dict)
         self.time_info.append(info)
+
+    def is_available() -> bool:
+        """Return True if TimeLineDeck can be rendered"""
+        try:
+            from flytekitplugins.deck.renderer import GanttChartRenderer, TableRenderer  # noqa
+
+            return True
+        except ImportError:
+            return False
 
     @property
     def html(self) -> str:
