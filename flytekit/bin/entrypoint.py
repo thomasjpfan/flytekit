@@ -4,8 +4,6 @@ import datetime as _datetime
 import inspect
 import os
 import pathlib
-import signal
-import subprocess
 import tempfile
 import traceback as _traceback
 from sys import exit
@@ -482,6 +480,37 @@ def execute_task_cmd(
     resolver,
     resolver_args,
 ):
+    return _execute_task_cmd(
+        inputs,
+        output_prefix,
+        raw_output_data_prefix,
+        test,
+        prev_checkpoint,
+        checkpoint_path,
+        dynamic_addl_distro,
+        dynamic_dest_dir,
+        resolver,
+        resolver_args,
+    )
+
+    # checkpoint_path: Optional[str] = None,
+    # prev_checkpoint: Optional[str] = None,
+    # dynamic_addl_distro: Optional[str] = None,
+    # dynamic_dest_dir: Optional[str] = None,
+
+
+def _execute_task_cmd(
+    inputs,
+    output_prefix,
+    raw_output_data_prefix,
+    test,
+    resolver,
+    resolver_args,
+    prev_checkpoint=None,
+    checkpoint_path=None,
+    dynamic_addl_distro=None,
+    dynamic_dest_dir=None,
+):
     logger.info(get_version_message())
     # We get weird errors if there are no click echo messages at all, so emit an empty string so that unit tests pass.
     _click.echo("")
@@ -530,17 +559,37 @@ def fast_execute_task_cmd(additional_distribution: str, dest_dir: str, task_exec
             cmd.extend(["--dynamic-addl-distro", additional_distribution, "--dynamic-dest-dir", dest_dir])
         cmd.append(arg)
 
+    # Remove pyflyte-execute
+    cmd = cmd[1:]
+    kwargs = {}
+    i = 0
+    while i < len(cmd):
+        current = cmd[i]
+        if current.startswith("--"):
+            if len(current) == 2:
+                break
+            else:
+                kwargs[current[2:].replace("-", "_")] = cmd[i + 1]
+                i += 2
+        else:
+            ValueError("Something is bad")
+    assert cmd[i] == "--"
+    kwargs["resolver_args"] = cmd[i + 1 :]
+    kwargs["test"] = "test" in kwargs
+
+    _execute_task_cmd(**kwargs)
+
     # Use the commandline to run the task execute command rather than calling it directly in python code
     # since the current runtime bytecode references the older user code, rather than the downloaded distribution.
-    p = subprocess.Popen(cmd)
+    # p = subprocess.Popen(cmd)
 
-    def handle_sigterm(signum, frame):
-        logger.info(f"passing signum {signum} [frame={frame}] to subprocess")
-        p.send_signal(signum)
+    # def handle_sigterm(signum, frame):
+    #     logger.info(f"passing signum {signum} [frame={frame}] to subprocess")
+    #     p.send_signal(signum)
 
-    signal.signal(signal.SIGTERM, handle_sigterm)
-    returncode = p.wait()
-    exit(returncode)
+    # signal.signal(signal.SIGTERM, handle_sigterm)
+    # returncode = p.wait()
+    # exit(returncode)
 
 
 @_pass_through.command("pyflyte-map-execute")
