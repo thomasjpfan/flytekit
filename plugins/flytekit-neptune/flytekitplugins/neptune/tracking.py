@@ -69,9 +69,16 @@ class _neptune_init_run_class(ClassDecorator):
 
             if execution_url := os.getenv("FLYTE_EXECUTION_URL") is not None:
                 run["Flyte Execution URL"] = execution_url
-        output = self.task_function(*args, **kwargs)
-        run.stop()
-        return output
+
+        ctx = FlyteContextManager.current_context()
+        new_user_params = ctx.user_space_params.builder().add_attr("NEPTUNE_RUN", run).build()
+
+        with FlyteContextManager.with_context(
+            ctx.with_execution_state(ctx.execution_state.with_params(user_space_params=new_user_params))
+        ):
+            output = self.task_function(*args, **kwargs)
+            run.stop()
+            return output
 
     def get_extra_config(self):
         return {self.NEPTUNE_HOST_KEY: self.host, self.NEPTUNE_PROJECT_KEY: self.project}
