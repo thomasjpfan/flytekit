@@ -67,10 +67,10 @@ class _neptune_init_run_class(ClassDecorator):
             # The HOSTNAME is set to {.executionName}-{.nodeID}-{.taskRetryAttempt}
             # If HOSTNAME is not defined, use the execution name as a fallback
             hostname = os.environ.get("HOSTNAME", ctx.user_space_params.execution_id.name)
-            run["Flyte Execution ID"] = hostname
+            run["Flyte-Execution-ID"] = hostname
 
             if execution_url := os.getenv("FLYTE_EXECUTION_URL") is not None:
-                run["Flyte Execution URL"] = execution_url
+                run["Flyte-Execution-URL"] = execution_url
 
         ctx = FlyteContextManager.current_context()
         new_user_params = ctx.user_space_params.builder().add_attr("NEPTUNE_RUN", run).build()
