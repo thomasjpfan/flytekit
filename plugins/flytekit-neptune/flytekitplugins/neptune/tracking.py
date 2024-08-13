@@ -12,7 +12,7 @@ NEPTUNE_RUN_VALUE = "neptune-run-id"
 def neptune_init_run(
     project: str,
     secret: Union[Secret, Callable],
-    host: str = "https://app.neptune.a",
+    host: str = "https://app.neptune.ai",
     **init_run_kwargs: dict,
 ):
     return partial(
