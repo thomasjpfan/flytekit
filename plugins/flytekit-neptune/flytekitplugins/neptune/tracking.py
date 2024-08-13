@@ -51,11 +51,11 @@ class _neptune_init_run_class(ClassDecorator):
         if not is_local_execution:
             if isinstance(self.secret, Secret):
                 secrets = ctx.user_space_params.secrets
-                neptune_api_key = secrets.get(key=self.secret.key, group=self.secret.group)
+                neptune_api_token = secrets.get(key=self.secret.key, group=self.secret.group)
             else:
                 # Callable
-                neptune_api_key = self.secret()
-            init_run_kwargs["api_key"] = neptune_api_key
+                neptune_api_token = self.secret()
+            init_run_kwargs["api_token"] = neptune_api_token
 
         import neptune
 
