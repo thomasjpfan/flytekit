@@ -6,6 +6,8 @@ from flytekit import Secret
 from flytekit.core.context_manager import FlyteContextManager
 from flytekit.core.utils import ClassDecorator
 
+NEPTUNE_RUN_VALUE = "neptune-run-id"
+
 
 def neptune_init_run(
     project: str,
@@ -81,4 +83,8 @@ class _neptune_init_run_class(ClassDecorator):
             return output
 
     def get_extra_config(self):
-        return {self.NEPTUNE_HOST_KEY: self.host, self.NEPTUNE_PROJECT_KEY: self.project}
+        return {
+            self.NEPTUNE_HOST_KEY: self.host,
+            self.NEPTUNE_PROJECT_KEY: self.project,
+            self.LINK_TYPE_KEY: NEPTUNE_RUN_VALUE,
+        }
