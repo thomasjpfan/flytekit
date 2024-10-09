@@ -24,6 +24,8 @@ from contextlib import suppress
 from enum import Enum
 from typing import Any, Callable, Iterable, List, Optional, TypeVar, Union, cast
 
+from typing_extensions import ParamSpec
+
 from flytekit.core import launch_plan as _annotated_launch_plan
 from flytekit.core.base_task import Task, TaskResolverMixin
 from flytekit.core.context_manager import ExecutionState, FlyteContext, FlyteContextManager
@@ -78,7 +80,11 @@ class PythonInstanceTask(PythonAutoContainerTask[T], ABC):  # type: ignore
         super().__init__(name=name, task_config=task_config, task_type=task_type, task_resolver=task_resolver, **kwargs)
 
 
-class PythonFunctionTask(PythonAutoContainerTask[T]):  # type: ignore
+P = ParamSpec("P")
+FuncOut = TypeVar("FuncOut")
+
+
+class PythonFunctionTask(PythonAutoContainerTask[T, FuncOut]):
     """
     A Python Function task should be used as the base for all extensions that have a python function. It will
     automatically detect interface of the python function and when serialized on the hosted Flyte platform handles the
@@ -104,7 +110,7 @@ class PythonFunctionTask(PythonAutoContainerTask[T]):  # type: ignore
     def __init__(
         self,
         task_config: T,
-        task_function: Callable,
+        task_function: Callable[P, FuncOut],
         task_type="python-task",
         ignore_input_vars: Optional[List[str]] = None,
         execution_mode: ExecutionBehavior = ExecutionBehavior.DEFAULT,
@@ -165,6 +171,9 @@ class PythonFunctionTask(PythonAutoContainerTask[T]):  # type: ignore
                 "workflows its redundant because flyte can find the node dependencies automatically"
             )
         self._wf = None  # For dynamic tasks
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> FuncOut:
+        return super().__call__(*args, **kwargs)
 
     @property
     def execution_mode(self) -> ExecutionBehavior:

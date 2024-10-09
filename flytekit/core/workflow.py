@@ -6,7 +6,7 @@ import typing
 from dataclasses import dataclass
 from enum import Enum
 from functools import update_wrapper
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Type, Union, cast, overload
+from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, Tuple, Type, TypeVar, Union, cast, overload
 
 from typing_inspect import is_optional_type
 
@@ -653,7 +653,11 @@ class ImperativeWorkflow(WorkflowBase):
         return True
 
 
-class PythonFunctionWorkflow(WorkflowBase, ClassStorageTaskResolver):
+P = ParamSpec("P")
+FuncOut = TypeVar("FuncOut")
+
+
+class PythonFunctionWorkflow(WorkflowBase, ClassStorageTaskResolver, Generic[FuncOut]):
     """
     Please read :std:ref:`flyte:divedeep-workflows` first for a high-level understanding of what workflows are in Flyte.
     This Python object represents a workflow  defined by a function and decorated with the
@@ -662,7 +666,7 @@ class PythonFunctionWorkflow(WorkflowBase, ClassStorageTaskResolver):
 
     def __init__(
         self,
-        workflow_function: Callable,
+        workflow_function: Callable[P, FuncOut],
         metadata: WorkflowMetadata,
         default_metadata: WorkflowMetadataDefaults,
         docstring: Optional[Docstring] = None,
@@ -688,6 +692,9 @@ class PythonFunctionWorkflow(WorkflowBase, ClassStorageTaskResolver):
             default_options=default_options,
         )
         self.compiled = False
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> FuncOut:
+        return super().__call__(*args, **kwargs)
 
     @property
     def function(self):
@@ -838,7 +845,7 @@ def workflow(
     on_failure: Optional[Union[WorkflowBase, Task]] = ...,
     docs: Optional[Documentation] = ...,
     default_options: Optional[Options] = ...,
-) -> Callable[[Callable[..., FuncOut]], PythonFunctionWorkflow]: ...
+) -> Callable[[Callable[P, FuncOut]], PythonFunctionWorkflow[FuncOut]]: ...
 
 
 @overload
@@ -849,7 +856,7 @@ def workflow(
     on_failure: Optional[Union[WorkflowBase, Task]] = ...,
     docs: Optional[Documentation] = ...,
     default_options: Optional[Options] = ...,
-) -> Union[Callable[P, FuncOut], PythonFunctionWorkflow]: ...
+) -> Union[Callable[P, FuncOut], PythonFunctionWorkflow[FuncOut]]: ...
 
 
 def workflow(
@@ -859,7 +866,11 @@ def workflow(
     on_failure: Optional[Union[WorkflowBase, Task]] = None,
     docs: Optional[Documentation] = None,
     default_options: Optional[Options] = None,
-) -> Union[Callable[P, FuncOut], Callable[[Callable[P, FuncOut]], PythonFunctionWorkflow], PythonFunctionWorkflow]:
+) -> Union[
+    Callable[P, FuncOut],
+    Callable[[Callable[P, FuncOut]], PythonFunctionWorkflow[FuncOut]],
+    PythonFunctionWorkflow,
+]:
     """
     This decorator declares a function to be a Flyte workflow. Workflows are declarative entities that construct a DAG
     of tasks using the data flow between tasks.
@@ -894,7 +905,7 @@ def workflow(
          the labels and annotations are allowed to be set as defaults.
     """
 
-    def wrapper(fn: Callable[P, FuncOut]) -> PythonFunctionWorkflow:
+    def wrapper(fn: Callable[P, FuncOut]) -> PythonFunctionWorkflow[FuncOut]:
         workflow_metadata = WorkflowMetadata(on_failure=failure_policy or WorkflowFailurePolicy.FAIL_IMMEDIATELY)
 
         workflow_metadata_defaults = WorkflowMetadataDefaults(interruptible)
