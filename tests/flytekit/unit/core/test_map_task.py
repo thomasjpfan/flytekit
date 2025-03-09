@@ -6,7 +6,7 @@ import pytest
 from kubernetes.client import V1PodSpec, V1Container, V1EnvVar
 
 import flytekit.configuration
-from flytekit import LaunchPlan, Resources, PodTemplate
+from flytekit import LaunchPlan, Resources, PodTemplate, Secret, current_context
 from flytekit.configuration import Image, ImageConfig
 from flytekit.core.legacy_map_task import MapPythonTask, MapTaskResolver, map_task
 from flytekit.core.task import TaskMetadata, task
@@ -387,6 +387,24 @@ def test_map_task_pod_template_override(serialization_settings):
     assert wf.nodes[0]._pod_template.pod_spec.containers[0].image == "random:image"
     assert wf.nodes[0]._pod_template.labels == {"lKeyA": "lValA", "lKeyB": "lValB"}
     assert wf.nodes[0]._pod_template.annotations["aKeyA"] == "aValA"
+
+
+def test_map_task_secret_pod_template_override():
+    @task(secret_requests=[Secret(key="my_key", group="my_group")])
+    def my_mappable_task(a: int, secret: Secret) -> str:
+        secret = current_context().secrets.get(key=secret.key, group=secret.group)
+        return f"{secret}: {a}"
+
+    @workflow
+    def wf(x: typing.List[int]) -> typing.List[str]:
+        secret = Secret(key="new_key", group="new_group")
+        my_mappable_task_ = functools.partial(my_mappable_task, secret=secret)
+        return map_task(my_mappable_task_)(a=x).with_overrides(
+            secret_requests=[secret]
+        )
+
+    assert wf.nodes[0]._security_context.secrets[0].key == "new_key"
+    assert wf.nodes[0]._security_context.secrets[0].group == "new_group"
 
 
 def test_bounded_inputs_vars_order(serialization_settings):

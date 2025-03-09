@@ -7,7 +7,7 @@ import pytest
 from kubernetes.client import V1PodSpec, V1Container, V1EnvVar
 
 import flytekit.configuration
-from flytekit import Resources, map_task, PodTemplate
+from flytekit import Resources, map_task, PodTemplate, Secret, current_context
 from flytekit.configuration import Image, ImageConfig
 from flytekit.core.dynamic_workflow_task import dynamic
 from flytekit.core.node_creation import create_node
@@ -530,6 +530,20 @@ def test_pod_template_override():
     assert wf.nodes[0]._pod_template.pod_spec.containers[0].image == "random:image"
     assert wf.nodes[0]._pod_template.labels == {"lKeyA": "lValA", "lKeyB": "lValB"}
     assert wf.nodes[0]._pod_template.annotations["aKeyA"] == "aValA"
+
+
+def test_override_secret_requests():
+    @task(secret_requests=[Secret(key="my_key", group="my_group")])
+    def process(secret: Secret) -> str:
+        return current_context().secrets.get(key=secret.key, group=secret.group)
+
+    @workflow
+    def wf() -> str:
+        secret = Secret(key="key1", group="group2")
+        return process(secret=secret).with_overrides(secret_requests=[secret])
+
+    assert wf.nodes[0]._security_context.secrets[0].key == "key1"
+    assert wf.nodes[0]._security_context.secrets[0].group == "group2"
 
 
 def test_override_accelerator():
