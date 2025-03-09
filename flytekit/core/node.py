@@ -73,7 +73,7 @@ class Node(object):
         self._extended_resources: typing.Optional[tasks_pb2.ExtendedResources] = None
         self._container_image: typing.Optional[str] = None
         self._pod_template: typing.Optional[PodTemplate] = None
-        self._override_security_context: typing.Optional[SecurityContext] = None
+        self._security_context: typing.Optional[SecurityContext] = None
 
     def runs_before(self, other: Node):
         """
@@ -268,7 +268,7 @@ class Node(object):
                     raise ValueError("secret_requests must be a list of `flytekit.Secret`")
                 assert_not_promise(secret.key, "secret.key")
                 assert_not_promise(secret.group, "secret.group")
-                self._override_security_context = SecurityContext(secrets=secret_requests)
+                self._security_context = SecurityContext(secrets=secret_requests)
 
         return self
 

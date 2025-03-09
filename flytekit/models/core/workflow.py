@@ -624,13 +624,13 @@ class TaskNodeOverrides(_common.FlyteIdlEntity):
         extended_resources: typing.Optional[tasks_pb2.ExtendedResources],
         container_image: typing.Optional[str] = None,
         pod_template: typing.Optional[PodTemplate] = None,
-        override_security_context: typing.Optional[SecurityContext] = None,
+        security_context: typing.Optional[SecurityContext] = None,
     ):
         self._resources = resources
         self._extended_resources = extended_resources
         self._container_image = container_image
         self._pod_template = pod_template
-        self._override_security_context = override_security_context
+        self._security_context = security_context
 
     @property
     def resources(self) -> Resources:
@@ -649,8 +649,8 @@ class TaskNodeOverrides(_common.FlyteIdlEntity):
         return self._pod_template
 
     @property
-    def override_security_context(self) -> typing.Optional[SecurityContext]:
-        return self._override_security_context
+    def security_context(self) -> typing.Optional[SecurityContext]:
+        return self._security_context
 
     def to_flyte_idl(self):
         pod_template_override = None
@@ -668,9 +668,7 @@ class TaskNodeOverrides(_common.FlyteIdlEntity):
             extended_resources=self.extended_resources,
             container_image=self.container_image,
             pod_template=pod_template_override,
-            override_security_context=(
-                self.override_security_context.to_flyte_idl() if self.override_security_context is not None else None
-            ),
+            security_context=(self.security_context.to_flyte_idl() if self.security_context is not None else None),
         )
 
     @classmethod
@@ -679,9 +677,9 @@ class TaskNodeOverrides(_common.FlyteIdlEntity):
         extended_resources = pb2_object.extended_resources if pb2_object.HasField("extended_resources") else None
         container_image = pb2_object.container_image if len(pb2_object.container_image) > 0 else None
         pod_template = pb2_object.pod_template if pb2_object.HasField("pod_template") else None
-        override_security_context = (
-            SecurityContext.from_flyte_idl(pb2_object.override_security_context)
-            if pb2_object.HasField("override_security_context")
+        security_context = (
+            SecurityContext.from_flyte_idl(pb2_object.security_context)
+            if pb2_object.HasField("security_context")
             else None
         )
         if bool(resources.requests) or bool(resources.limits):
@@ -690,14 +688,14 @@ class TaskNodeOverrides(_common.FlyteIdlEntity):
                 extended_resources=extended_resources,
                 container_image=container_image,
                 pod_template=pod_template,
-                override_security_context=override_security_context,
+                security_context=security_context,
             )
         return cls(
             resources=None,
             extended_resources=extended_resources,
             container_image=container_image,
             pod_template=pod_template,
-            override_security_context=override_security_context,
+            security_context=security_context,
         )
 
 
