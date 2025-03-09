@@ -44,6 +44,7 @@ from flytekit.models import types as _type_models
 from flytekit.models import types as type_models
 from flytekit.models.core import workflow as _workflow_model
 from flytekit.models.literals import Binary, Literal, Primitive, Scalar
+from flytekit.models.security import Secret
 from flytekit.models.task import Resources
 from flytekit.models.types import SimpleType
 from flytekit.utils.asyn import loop_manager, run_sync
@@ -596,6 +597,7 @@ class Promise(object):
         cache: Optional[bool] = None,
         cache_version: Optional[str] = None,
         cache_serialize: Optional[bool] = None,
+        secret_requests: Optional[List[Secret]] = None,
         *args,
         **kwargs,
     ):
@@ -616,6 +618,7 @@ class Promise(object):
                 cache=cache,
                 cache_version=cache_version,
                 cache_serialize=cache_serialize,
+                secret_requests=secret_requests,
                 *args,
                 **kwargs,
             )

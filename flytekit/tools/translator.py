@@ -479,6 +479,7 @@ def get_serializable_node(
                     resources=entity._resources,
                     extended_resources=entity._extended_resources,
                     container_image=entity._container_image,
+                    override_security_context=entity._override_security_context,
                     pod_template=PodTemplate(
                         pod_spec=override_pod_spec,
                         labels=entity._pod_template.labels if entity._pod_template.labels else None,
@@ -570,6 +571,7 @@ def get_serializable_node(
                     resources=entity._resources,
                     extended_resources=entity._extended_resources,
                     container_image=entity._container_image,
+                    override_security_context=entity._override_security_context,
                 ),
             ),
         )

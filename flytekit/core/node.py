@@ -14,6 +14,7 @@ from flytekit.extras.accelerators import BaseAccelerator
 from flytekit.loggers import logger
 from flytekit.models import literals as _literal_models
 from flytekit.models.core import workflow as _workflow_model
+from flytekit.models.security import Secret, SecurityContext
 from flytekit.models.task import Resources as _resources_model
 
 
@@ -72,6 +73,7 @@ class Node(object):
         self._extended_resources: typing.Optional[tasks_pb2.ExtendedResources] = None
         self._container_image: typing.Optional[str] = None
         self._pod_template: typing.Optional[PodTemplate] = None
+        self._override_security_context: typing.Optional[SecurityContext] = None
 
     def runs_before(self, other: Node):
         """
@@ -200,6 +202,7 @@ class Node(object):
         cache_serialize: Optional[bool] = None,
         shared_memory: Optional[Union[L[True], str]] = None,
         pod_template: Optional[PodTemplate] = None,
+        secret_requests: Optional[List[Secret]] = None,
         *args,
         **kwargs,
     ):
@@ -257,6 +260,15 @@ class Node(object):
         if pod_template is not None:
             assert_not_promise(pod_template, "podtemplate")
             self._pod_template = pod_template
+
+        if secret_requests is not None:
+            assert_not_promise(secret_requests, "secret_requests")
+            for secret in secret_requests:
+                if not isinstance(secret, Secret):
+                    raise ValueError("secret_requests must be a list of `flytekit.Secret`")
+                assert_not_promise(secret.key, "secret.key")
+                assert_not_promise(secret.group, "secret.group")
+                self._override_security_context = SecurityContext(secrets=secret_requests)
 
         return self
 
